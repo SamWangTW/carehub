@@ -1,3 +1,5 @@
+import PaginationControls from "./PaginationControls";
+
 type Patient = {
   id: string;
   firstName: string;
@@ -137,6 +139,12 @@ export default async function PatientsPage({
           )}
         </tbody>
       </table>
+
+      {/* ✅ PAGINATION CONTROLS */}
+      <PaginationControls
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+      />
     </main>
   );
 }
