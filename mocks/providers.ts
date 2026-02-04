@@ -1,7 +1,7 @@
-import type { Provider } from "@/types/provider";
+import type { Provider } from "../types/provider";
 
 export const providers: Provider[] = [
-  // Mon-Fri, 08:00-16:00
+
   {
     id: "prov-001",
     name: "Dr. Maya Chen",
@@ -10,7 +10,7 @@ export const providers: Provider[] = [
     startHour: 8,
     endHour: 16,
   },
-  // Tue-Sat, 10:00-18:00
+
   {
     id: "prov-002",
     name: "Dr. Lucas Ramirez",
@@ -19,7 +19,7 @@ export const providers: Provider[] = [
     startHour: 10,
     endHour: 18,
   },
-  // Mon, Wed, Fri, 12:00-20:00
+
   {
     id: "prov-003",
     name: "Dr. Aisha Patel",
@@ -28,7 +28,7 @@ export const providers: Provider[] = [
     startHour: 12,
     endHour: 20,
   },
-  // Tue, Thu, 07:00-15:00
+
   {
     id: "prov-004",
     name: "Dr. Owen Brooks",
@@ -37,7 +37,7 @@ export const providers: Provider[] = [
     startHour: 7,
     endHour: 15,
   },
-  // Sat-Sun, 09:00-17:00
+
   {
     id: "prov-005",
     name: "Dr. Sofia Alvarez",
