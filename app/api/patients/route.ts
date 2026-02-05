@@ -1,4 +1,5 @@
-import { withLatency } from "../../../lib/fakeNetwork";
+// app/api/patients/route.ts
+import { withLatency, maybeFail } from "../../../lib/fakeNetwork";
 import { patients } from "../../../mocks/patients";
 import { appointments } from "../../../mocks/appointments";
 
@@ -31,8 +32,44 @@ function safeString(v: unknown): string {
   return typeof v === "string" ? v : String(v ?? "");
 }
 
+/** Semantic order for enums */
+const riskRank: Record<RiskLevel, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+  critical: 4,
+};
+
+const statusRank: Record<PatientStatus, number> = {
+  inactive: 1,
+  active: 2,
+  deceased: 3,
+};
+
+/** Allowlist for sortBy to prevent invalid keys */
+const allowedSortBy = new Set([
+  "id",
+  "mrn",
+  "primaryProviderId",
+  "firstName",
+  "lastName",
+  "dob",
+  "createdAt",
+  "status",
+  "riskLevel",
+]);
+
 export async function GET(req: Request) {
-  await withLatency(); // 200–500ms simulated latency
+  const latencyOn = process.env.NEXT_PUBLIC_FAKE_LATENCY === "1";
+  const errorRate = Number(process.env.NEXT_PUBLIC_FAKE_ERROR_RATE ?? "0");
+
+  if (latencyOn) {
+    await withLatency();
+  }
+
+  if (errorRate > 0) {
+    maybeFail(errorRate);
+  }
 
   const url = new URL(req.url);
   const sp = url.searchParams;
@@ -44,27 +81,30 @@ export async function GET(req: Request) {
   const status = isValidStatus(statusParam) ? statusParam : undefined;
 
   const providerId = sp.get("provider")?.trim() || undefined;
-
   const hasUpcoming = parseBoolean(sp.get("hasUpcoming"));
 
   const riskParam = sp.get("riskLevel");
   const riskLevel = isValidRiskLevel(riskParam) ? riskParam : undefined;
 
   const page = parseIntSafe(sp.get("page"), 1);
-  const limit = parseIntSafe(sp.get("limit"), 10);
+  const rawLimit = parseIntSafe(sp.get("limit"), 10);
+  const allowedLimits = new Set([10, 20, 50]);
+  const limit = allowedLimits.has(rawLimit) ? rawLimit : 10;
 
-  const sortBy = sp.get("sortBy")?.trim() || "lastName";
-  const sortOrder = (sp.get("sortOrder") === "desc" ? "desc" : "asc") as
-    | "asc"
-    | "desc";
+  const rawSortBy = sp.get("sortBy")?.trim() || "lastName";
+  const sortBy = allowedSortBy.has(rawSortBy) ? rawSortBy : "lastName";
 
-  // Precompute upcoming appointments by patientId (for hasUpcoming filter)
+  const sortOrder =
+    sp.get("sortOrder") === "desc" ? "desc" : ("asc" as "asc" | "desc");
+
+  // Precompute upcoming appointments by patientId
   const now = new Date();
   const upcomingByPatient = new Set<string>();
   for (const appt of appointments) {
     if (appt.status !== "scheduled") continue;
-    const start = new Date(appt.startTime);
-    if (start > now) upcomingByPatient.add(appt.patientId);
+    if (new Date(appt.startTime) > now) {
+      upcomingByPatient.add(appt.patientId);
+    }
   }
 
   // 1) Filter
@@ -73,13 +113,10 @@ export async function GET(req: Request) {
   if (search) {
     filtered = filtered.filter((p) => {
       const fullName = `${p.firstName} ${p.lastName}`.toLowerCase();
-      const mrn = (p.mrn ?? "").toLowerCase();
-      const dob = (p.dob ?? "").toLowerCase();
-
       return (
         fullName.includes(search) ||
-        mrn.includes(search) ||
-        dob.includes(search)
+        p.mrn.toLowerCase().includes(search) ||
+        p.dob.toLowerCase().includes(search)
       );
     });
   }
@@ -102,21 +139,47 @@ export async function GET(req: Request) {
     filtered = filtered.filter((p) => p.riskLevel === riskLevel);
   }
 
-  // 2) Sort (by any column, safely)
+  // 2) Sort (semantic where needed)
   filtered.sort((a, b) => {
-    const aVal = safeString((a as any)[sortBy]);
-    const bVal = safeString((b as any)[sortBy]);
-
-    // numeric compare when both are numeric-like
-    const aNum = Number(aVal);
-    const bNum = Number(bVal);
-    const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum);
-
     let cmp = 0;
-    if (bothNumeric) {
-      cmp = aNum - bNum;
-    } else {
-      cmp = aVal.localeCompare(bVal, undefined, { sensitivity: "base" });
+
+    // Name: lastName, then firstName
+    if (sortBy === "lastName") {
+      cmp = a.lastName.localeCompare(b.lastName, undefined, {
+        sensitivity: "base",
+      });
+      if (cmp === 0) {
+        cmp = a.firstName.localeCompare(b.firstName, undefined, {
+          sensitivity: "base",
+        });
+      }
+    }
+    // Date fields
+    else if (sortBy === "dob" || sortBy === "createdAt") {
+      const aTime = new Date(a[sortBy]).getTime();
+      const bTime = new Date(b[sortBy]).getTime();
+      cmp = (aTime || 0) - (bTime || 0);
+    }
+    // Risk severity
+    else if (sortBy === "riskLevel") {
+      cmp = riskRank[a.riskLevel] - riskRank[b.riskLevel];
+    }
+    // Status workflow
+    else if (sortBy === "status") {
+      cmp = statusRank[a.status] - statusRank[b.status];
+    }
+    // Default: string / numeric fallback
+    else {
+      const aVal = safeString((a as any)[sortBy]);
+      const bVal = safeString((b as any)[sortBy]);
+
+      const aNum = Number(aVal);
+      const bNum = Number(bVal);
+      const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum);
+
+      cmp = bothNumeric
+        ? aNum - bNum
+        : aVal.localeCompare(bVal, undefined, { sensitivity: "base" });
     }
 
     return sortOrder === "desc" ? -cmp : cmp;

@@ -1,12 +1,14 @@
-type PageProps = {
-  params: { id: string };
-};
+export default async function PatientDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-export default function PatientDetailPage({ params }: PageProps) {
   return (
     <main style={{ padding: 24 }}>
       <h1>Patient Detail</h1>
-      <p>Patient ID: {params.id}</p>
+      <p>Patient ID: {id}</p>
     </main>
   );
 }
