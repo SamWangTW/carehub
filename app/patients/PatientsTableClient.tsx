@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Patient } from "../../types/patient";
 import SortableHeader from "./SortableHeader";
@@ -141,7 +142,22 @@ export default function PatientsTableClient({
                 </td>
 
                 <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>
-                  {p.firstName} {p.lastName}
+                  <Link
+                    href={`/patients/${p.id}`}
+                    style={{
+                      color: "inherit",
+                      textDecoration: "none",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.textDecoration = "underline";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.textDecoration = "none";
+                    }}
+                  >
+                    {p.firstName} {p.lastName}
+                  </Link>
                 </td>
 
                 <td style={{ borderBottom: "1px solid #f0f0f0", padding: 8 }}>

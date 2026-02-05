@@ -16,6 +16,8 @@ function pickOne<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+const rooms = ["Room 101", "Room 202", "Room 305", "Telehealth", "Lab A"];
+
 /**
  * Generate all available appointment slots for a provider
  * over the next N days, based on provider schedule.
@@ -103,6 +105,9 @@ for (let i = 0; i < TOTAL_APPOINTMENTS && slotPool.length > 0; i++) {
     status = Math.random() < 0.1 ? "canceled" : "scheduled";
   }
 
+  const room =
+    status === "scheduled" || status === "completed" ? pickOne(rooms) : undefined;
+
   appointments.push({
     id: `appt-${String(i + 1).padStart(4, "0")}`,
     patientId: patient.id,
@@ -110,6 +115,7 @@ for (let i = 0; i < TOTAL_APPOINTMENTS && slotPool.length > 0; i++) {
     startTime: slot.start.toISOString(),
     endTime: slot.end.toISOString(),
     status,
+    room,
     createdAt: new Date(
       slot.start.getTime() - randomInt(1, 14) * 24 * 60 * 60 * 1000
     ).toISOString(),
