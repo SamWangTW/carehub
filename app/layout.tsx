@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import ToastProvider from "../components/notifications/ToastProvider";
+import NotificationBell from "../components/notifications/NotificationBell";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +30,25 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ToastProvider>
+          <header className="sticky top-0 z-40 border-b border-neutral-800/80 bg-neutral-950/90 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+              <div className="flex items-center gap-4 text-neutral-100">
+                <span className="font-semibold">CareHub</span>
+                <nav className="flex items-center gap-3 text-sm text-neutral-300">
+                  <Link className="hover:text-white" href="/patients">
+                    Patients
+                  </Link>
+                  <Link className="hover:text-white" href="/schedule">
+                    Schedule
+                  </Link>
+                </nav>
+              </div>
+              <NotificationBell />
+            </div>
+          </header>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
