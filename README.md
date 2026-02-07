@@ -38,8 +38,8 @@ Create a `.env.local` file in the project root:
 
 ```env
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
-NEXT_PUBLIC_FAKE_LATENCY=0
-NEXT_PUBLIC_FAKE_ERROR_RATE=0
+NEXT_PUBLIC_FAKE_LATENCY=1        # Simulate latency (~200–500ms)
+NEXT_PUBLIC_FAKE_ERROR_RATE=0.05  # Simulate occasional errors
 ```
 
 ---
