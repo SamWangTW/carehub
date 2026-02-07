@@ -4,7 +4,9 @@ import type { Note } from "../../../../../types/note";
 
 async function maybeSimulate() {
   const latencyOn = process.env.NEXT_PUBLIC_FAKE_LATENCY === "1";
-  const errorRate = Number(process.env.NEXT_PUBLIC_FAKE_ERROR_RATE ?? "0");
+  // Flaky endpoint for spec: ~5% failure rate by default (override via env).
+  const configuredRate = Number(process.env.NEXT_PUBLIC_FAKE_ERROR_RATE ?? "0");
+  const errorRate = configuredRate > 0 ? configuredRate : 0.05;
 
   if (latencyOn) {
     await withLatency();

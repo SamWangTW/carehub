@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 export default defineConfig({
-  testDir: "tests/e2e",
+  testDir: "tests/api",
   timeout: 10_000,
   webServer: {
     command: "npm run dev",

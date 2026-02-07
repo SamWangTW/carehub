@@ -170,6 +170,8 @@ Implement rich‑text notes editor and more complete “quick actions” in pati
 
 ## Getting Started
 
+Note: `GET /api/patients/:id/notes` intentionally simulates ~5% failures by default (override with `NEXT_PUBLIC_FAKE_ERROR_RATE`).
+
 Install dependencies and start the dev server:
 
 ```bash

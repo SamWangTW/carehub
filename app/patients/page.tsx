@@ -203,8 +203,6 @@ export default async function PatientsPage({
 
   return (
     <main style={{ padding: 24 }}>
-      <h1>Patients</h1>
-
       <PatientsFilters />
 
       <Suspense fallback={<PatientsTableSkeleton rows={limit} />}>

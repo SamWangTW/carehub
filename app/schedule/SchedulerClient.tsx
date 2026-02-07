@@ -14,9 +14,9 @@ type ViewBy = "provider" | "room";
 
 const startHour = 8;
 const endHour = 18;
-const slotMinutes = 30;
+const slotMinutes = 60;
 const slotsPerDay = ((endHour - startHour) * 60) / slotMinutes;
-const rowHeight = 32;
+const rowHeight = 100;
 
 const roomPool = ["Room 101", "Room 202", "Room 305", "Telehealth", "Lab A"];
 
@@ -120,6 +120,9 @@ export default function SchedulerClient() {
     useState<Appointment[]>(mockAppointments);
   const [selectedApptId, setSelectedApptId] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [draft, setDraft] = useState<{
     patientId: string;
     providerId: string;
@@ -177,7 +180,6 @@ export default function SchedulerClient() {
     appointments.forEach((a) => {
       if (a.room) rooms.add(a.room);
     });
-    rooms.add("Unassigned");
     return Array.from(rooms).map((r) => ({ id: r, label: r }));
   }, [viewBy, appointments, providers]);
 
@@ -251,6 +253,32 @@ export default function SchedulerClient() {
       )
     );
     setPendingMove(null);
+  }
+
+  async function confirmDelete() {
+    if (!selectedApptId || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch(`/api/appointments/${selectedApptId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 404) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? "Failed to cancel appointment.");
+      }
+      setAppointments((prev) =>
+        prev.filter((a) => a.id !== selectedApptId)
+      );
+      setSelectedApptId(null);
+      setDeleteConfirmOpen(false);
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to cancel appointment."
+      );
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function getAbsoluteSlotFromClientY(clientY: number) {
@@ -339,7 +367,7 @@ export default function SchedulerClient() {
     setDraft(null);
   }
 
-  const gridColumns = `120px repeat(${columns.length}, minmax(320px, 1fr))`;
+  const gridColumns = `120px repeat(${columns.length}, 1fr)`;
   const totalSlots = days.length * slotsPerDay;
 
   const nowLine =
@@ -378,9 +406,9 @@ export default function SchedulerClient() {
             style={{
               padding: "6px 10px",
               borderRadius: 6,
-              border: "1px solid #2a2a2a",
-              background: viewMode === "week" ? "#2d2d2d" : "transparent",
-              color: "#e6e6e6",
+              border: "1px solid #ddd",
+              background: viewMode === "week" ? "#1f1f1f" : "#111",
+              color: "#fff",
               cursor: "pointer",
             }}
           >
@@ -394,9 +422,9 @@ export default function SchedulerClient() {
             style={{
               padding: "6px 10px",
               borderRadius: 6,
-              border: "1px solid #2a2a2a",
-              background: viewMode === "day" ? "#2d2d2d" : "transparent",
-              color: "#e6e6e6",
+              border: "1px solid #ddd",
+              background: viewMode === "day" ? "#1f1f1f" : "#111",
+              color: "#fff",
               cursor: "pointer",
             }}
           >
@@ -410,13 +438,13 @@ export default function SchedulerClient() {
             style={{
               padding: "6px 10px",
               borderRadius: 6,
-              border: "1px solid #2a2a2a",
-              background: "transparent",
-              color: "#e6e6e6",
+              border: "1px solid #ddd",
+              color: "#fff",
               cursor: "pointer",
             }}
+            aria-label="Previous"
           >
-            Prev
+            ‹
           </button>
           <button
             onClick={() => {
@@ -427,9 +455,9 @@ export default function SchedulerClient() {
             style={{
               padding: "6px 10px",
               borderRadius: 6,
-              border: "1px solid #2a2a2a",
-              background: "transparent",
-              color: "#e6e6e6",
+              border: "1px solid #ddd",
+              background: "#111",
+              color: "#fff",
               cursor: "pointer",
             }}
           >
@@ -440,13 +468,14 @@ export default function SchedulerClient() {
             style={{
               padding: "6px 10px",
               borderRadius: 6,
-              border: "1px solid #2a2a2a",
-              background: "transparent",
-              color: "#e6e6e6",
+              border: "1px solid #ddd",
+              background: "#111",
+              color: "#fff",
               cursor: "pointer",
             }}
+            aria-label="Next"
           >
-            Next
+            ›
           </button>
         </div>
 
@@ -461,9 +490,9 @@ export default function SchedulerClient() {
             style={{
               padding: "6px 10px",
               borderRadius: 6,
-              border: "1px solid #2a2a2a",
-              background: "transparent",
-              color: "#e6e6e6",
+              border: "1px solid #ddd",
+              background: "#111",
+              color: "#fff",
               cursor: "pointer",
             }}
           >
@@ -472,24 +501,24 @@ export default function SchedulerClient() {
           </select>
         </div>
 
-        <div style={{ color: "#cfcfcf" }}>
+        <div style={{ color: "#e6e6e6" }}>
           {viewMode === "week"
             ? `Week of ${weekStart.toLocaleDateString()}`
             : formatDateLabel(selectedDate)}
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] relative z-0 bg-background">
         {/* Header row */}
         <div
-          className="grid gap-0 pb-2 border-b border-neutral-600 min-w-full"
+          className="grid gap-0 pb-2 border-b border-white min-w-full sticky top-0 z-40 bg-neutral-950"
           style={{ gridTemplateColumns: gridColumns }}
         >
-          <div className="sticky left-0 z-30 bg-neutral-950 border-r border-neutral-700/70" />
+          <div className="sticky left-0 z-50 bg-neutral-950 border-r border-white" />
           {columns.map((c) => (
             <div
               key={c.id}
-              className="px-2 py-1 text-sm text-neutral-200 border-l border-neutral-700/70"
+              className="px-2 py-1 text-base text-neutral-100 border-l border-white text-center"
             >
               {c.label}
             </div>
@@ -499,7 +528,7 @@ export default function SchedulerClient() {
         {/* Grid */}
         <div
           ref={gridRef}
-          className="relative grid border border-neutral-700/80 rounded-lg overflow-hidden min-w-full"
+          className="relative grid border border-white rounded-lg overflow-hidden min-w-full bg-neutral-950"
           style={{
             gridTemplateColumns: gridColumns,
             gridTemplateRows: `repeat(${totalSlots}, ${rowHeight}px)`,
@@ -510,38 +539,31 @@ export default function SchedulerClient() {
           const dayIndex = Math.floor(index / slotsPerDay);
           const slotInDay = index % slotsPerDay;
           const { hours, minutes } = timeFromSlot(slotInDay);
-          const showTime = minutes === 0;
+            const showTime = minutes === 0;
           const isDayStart = slotInDay === 0;
           const day = days[dayIndex];
           const isToday = sameDay(day, today);
 
-          const todayHeader =
-            viewMode === "week" && isToday && isDayStart
-              ? "bg-emerald-500/10 text-emerald-200 font-semibold border-l-4 border-emerald-400/60"
-              : "";
           return (
             <div
               key={`time-${index}`}
-              className={`sticky left-0 z-20 flex items-center justify-between px-2 text-xs text-neutral-400 border-b border-neutral-700/70 bg-neutral-900/60 ${
-                viewMode === "week" && isToday ? "bg-emerald-500/5" : ""
-              } ${todayHeader}`}
+              className={`sticky left-0 z-0 flex flex-col items-center justify-center text-center gap-1 px-2 text-base text-white border-b border-white bg-neutral-950 ${
+                viewMode === "week" && isToday ? "bg-emerald-950/40" : ""
+              }`}
               style={{
                 gridColumn: 1,
                 gridRow: index + 1,
               }}
             >
-              {showTime ? formatTimeLabel(hours, minutes) : ""}
               {isDayStart ? (
-                <span className="flex items-center gap-2">
-                  {formatDateLabel(day)}
-                  {viewMode === "week" && isToday && (
-                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-200">
-                      Today
-                    </span>
-                  )}
-                </span>
+                <>
+                  <span className="flex items-center gap-2">
+                    {formatDateLabel(day)}
+                  </span>
+                  <span>{showTime ? formatTimeLabel(hours, minutes) : ""}</span>
+                </>
               ) : (
-                ""
+                <span>{showTime ? formatTimeLabel(hours, minutes) : ""}</span>
               )}
             </div>
           );
@@ -556,11 +578,12 @@ export default function SchedulerClient() {
           return columns.map((c, colIndex) => (
             <div
               key={`cell-${index}-${c.id}`}
-              className={`border-b border-neutral-700/70 border-l border-neutral-700/70 transition-colors cursor-pointer hover:bg-white/5 hover:ring-1 hover:ring-neutral-600/40 ${
-                slotInDay % 2 === 0 ? "bg-white/5" : "bg-transparent"
+              data-testid={`schedule-cell-${dayIndex}-${slotInDay}-${c.id}`}
+              className={`border-b border-white border-l border-white transition-colors cursor-pointer hover:bg-white/5 ${
+                slotInDay % 2 === 0 ? "bg-neutral-950" : "bg-neutral-900"
               } ${
                 viewMode === "week" && sameDay(day, today)
-                  ? "bg-emerald-500/5"
+                  ? "bg-emerald-950/40"
                   : ""
               }`}
               style={{
@@ -577,20 +600,7 @@ export default function SchedulerClient() {
           ));
         })}
 
-        {/* Current time line */}
-        {nowLine !== null && (
-          <div
-            style={{
-              position: "absolute",
-              left: 120,
-              right: 0,
-              top: nowLine * rowHeight,
-              height: 2,
-              background: "#ff6b6b",
-              zIndex: 2,
-            }}
-          />
-        )}
+        {/* Current time line removed */}
 
         {/* Appointment blocks */}
         {visibleAppointments.map((appt) => {
@@ -604,7 +614,7 @@ export default function SchedulerClient() {
 
           const durationSlots = Math.max(
             1,
-            Math.round(getDurationMinutes(appt) / slotMinutes)
+            Math.ceil(getDurationMinutes(appt) / slotMinutes)
           );
 
           const columnKey =
@@ -621,6 +631,7 @@ export default function SchedulerClient() {
           return (
             <div
               key={appt.id}
+              data-testid={`schedule-appt-${appt.id}`}
               draggable
               onDragStart={(e) => e.dataTransfer.setData("text/plain", appt.id)}
                 onClick={(e) => {
@@ -628,18 +639,21 @@ export default function SchedulerClient() {
                   setSelectedApptId(appt.id);
                   setIsCreateOpen(false);
                 }}
-                className="text-xs text-white cursor-grab z-10 overflow-hidden"
+                className="text-xs text-white cursor-grab z-10 overflow-hidden shadow-sm"
                 style={{
-                gridColumn: colIndex + 2,
-                gridRow: `${rowStart} / span ${durationSlots}`,
-                background:
-                  appt.status === "canceled"
-                    ? "rgba(255,107,107,0.2)"
-                    : "rgba(45,108,223,0.6)",
-                border: "1px solid #2a2a2a",
-                borderRadius: 6,
-                padding: 6,
-              }}
+                  gridColumn: colIndex + 2,
+                  gridRow: `${rowStart} / span ${durationSlots}`,
+                  height: "calc(100% - 12px)",
+                  margin: 6,
+                  background:
+                    appt.status === "canceled"
+                      ? "rgba(255,107,107,0.2)"
+                      : "rgba(45,108,223,0.6)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  borderRadius: 6,
+                  padding: 6,
+                  boxSizing: "border-box",
+                }}
               title="Drag to reschedule"
             >
               <div className="font-semibold truncate">{patientName}</div>
@@ -661,8 +675,9 @@ export default function SchedulerClient() {
 
       {/* Detail panel */}
       {selectedApptId && (
-        <div
-          style={{
+          <div
+            data-testid="schedule-side-panel"
+            style={{
             position: "fixed",
             top: 0,
             right: 0,
@@ -671,8 +686,8 @@ export default function SchedulerClient() {
             background: "#141414",
             borderLeft: "1px solid #2a2a2a",
             padding: 16,
-            color: "#e6e6e6",
-            zIndex: 10,
+            color: "#fff",
+            zIndex: 40,
           }}
         >
           {(() => {
@@ -700,22 +715,77 @@ export default function SchedulerClient() {
                   <strong>Status:</strong> {appt.status}
                 </p>
                 <p>
-                  <strong>Room:</strong> {appt.room ?? "—"}
-                </p>
-                <button
-                  onClick={() => setSelectedApptId(null)}
-                  style={{
-                    marginTop: 12,
-                    padding: "6px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #2a2a2a",
-                    background: "transparent",
-                    color: "#e6e6e6",
-                    cursor: "pointer",
-                  }}
-                >
-                  Close
-                </button>
+                    <strong>Room:</strong> {appt.room ?? "—"}
+                  </p>
+                  {deleteError && (
+                    <p style={{ color: "#ff6b6b" }}>{deleteError}</p>
+                  )}
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button
+                      data-testid="schedule-cancel-appointment"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid #8b1a1a",
+                        background: "#111",
+                        color: "#ff6b6b",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel appointment
+                    </button>
+                    <button
+                      onClick={() => setSelectedApptId(null)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1px solid #3a3a3a",
+                        background: "#111",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {deleteConfirmOpen && (
+                    <div style={{ marginTop: 12 }}>
+                      <p style={{ marginBottom: 8 }}>
+                        Are you sure you want to cancel this appointment?
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => setDeleteConfirmOpen(false)}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #3a3a3a",
+                            background: "#111",
+                            color: "#fff",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Keep
+                        </button>
+                        <button
+                          data-testid="schedule-cancel-confirm"
+                          onClick={confirmDelete}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            border: "1px solid #8b1a1a",
+                            background: "#3a0f0f",
+                            color: "#ffb3b3",
+                            cursor: "pointer",
+                          }}
+                          disabled={deleting}
+                        >
+                          {deleting ? "Canceling..." : "Confirm cancel"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
               </>
             );
           })()}
@@ -734,22 +804,29 @@ export default function SchedulerClient() {
             background: "#141414",
             borderLeft: "1px solid #2a2a2a",
             padding: 16,
-            color: "#e6e6e6",
-            zIndex: 10,
+            color: "#fff",
+            zIndex: 40,
           }}
         >
           <h3 style={{ marginTop: 0 }}>New Appointment</h3>
-          <label>
-            Patient
-            <select
-              value={draft.patientId}
-              onChange={(e) =>
-                setDraft((prev) =>
-                  prev ? { ...prev, patientId: e.target.value } : prev
-                )
-              }
-              style={{ width: "100%", padding: 8, marginTop: 4 }}
-            >
+            <label>
+              Patient
+              <select
+                value={draft.patientId}
+                onChange={(e) =>
+                  setDraft((prev) =>
+                    prev ? { ...prev, patientId: e.target.value } : prev
+                  )
+                }
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  marginTop: 4,
+                  background: "#0f0f0f",
+                  color: "#e6e6e6",
+                  border: "1px solid #2a2a2a",
+                }}
+              >
               {patients.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.firstName} {p.lastName}
@@ -758,17 +835,24 @@ export default function SchedulerClient() {
             </select>
           </label>
 
-          <label>
-            Provider
-            <select
-              value={draft.providerId}
-              onChange={(e) =>
-                setDraft((prev) =>
-                  prev ? { ...prev, providerId: e.target.value } : prev
-                )
-              }
-              style={{ width: "100%", padding: 8, marginTop: 4 }}
-            >
+            <label>
+              Provider
+              <select
+                value={draft.providerId}
+                onChange={(e) =>
+                  setDraft((prev) =>
+                    prev ? { ...prev, providerId: e.target.value } : prev
+                  )
+                }
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  marginTop: 4,
+                  background: "#0f0f0f",
+                  color: "#e6e6e6",
+                  border: "1px solid #2a2a2a",
+                }}
+              >
               {providers.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -777,17 +861,24 @@ export default function SchedulerClient() {
             </select>
           </label>
 
-          <label>
-            Room
-            <select
-              value={draft.room}
-              onChange={(e) =>
-                setDraft((prev) =>
-                  prev ? { ...prev, room: e.target.value } : prev
-                )
-              }
-              style={{ width: "100%", padding: 8, marginTop: 4 }}
-            >
+            <label>
+              Room
+              <select
+                value={draft.room}
+                onChange={(e) =>
+                  setDraft((prev) =>
+                    prev ? { ...prev, room: e.target.value } : prev
+                  )
+                }
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  marginTop: 4,
+                  background: "#0f0f0f",
+                  color: "#e6e6e6",
+                  border: "1px solid #2a2a2a",
+                }}
+              >
               {roomPool.map((r) => (
                 <option key={r} value={r}>
                   {r}
@@ -797,33 +888,47 @@ export default function SchedulerClient() {
             </select>
           </label>
 
-          <label>
-            Date
-            <input
-              type="date"
-              value={draft.date}
-              onChange={(e) =>
-                setDraft((prev) =>
-                  prev ? { ...prev, date: e.target.value } : prev
-                )
-              }
-              style={{ width: "100%", padding: 8, marginTop: 4 }}
-            />
-          </label>
+            <label>
+              Date
+              <input
+                type="date"
+                value={draft.date}
+                onChange={(e) =>
+                  setDraft((prev) =>
+                    prev ? { ...prev, date: e.target.value } : prev
+                  )
+                }
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  marginTop: 4,
+                  background: "#0f0f0f",
+                  color: "#e6e6e6",
+                  border: "1px solid #2a2a2a",
+                }}
+              />
+            </label>
 
-          <label>
-            Time
-            <input
-              type="time"
-              value={draft.time}
-              onChange={(e) =>
-                setDraft((prev) =>
-                  prev ? { ...prev, time: e.target.value } : prev
-                )
-              }
-              style={{ width: "100%", padding: 8, marginTop: 4 }}
-            />
-          </label>
+            <label>
+              Time
+              <input
+                type="time"
+                value={draft.time}
+                onChange={(e) =>
+                  setDraft((prev) =>
+                    prev ? { ...prev, time: e.target.value } : prev
+                  )
+                }
+                style={{
+                  width: "100%",
+                  padding: 8,
+                  marginTop: 4,
+                  background: "#0f0f0f",
+                  color: "#e6e6e6",
+                  border: "1px solid #2a2a2a",
+                }}
+              />
+            </label>
 
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button
@@ -834,9 +939,9 @@ export default function SchedulerClient() {
               style={{
                 padding: "6px 10px",
                 borderRadius: 6,
-                border: "1px solid #2a2a2a",
-                background: "transparent",
-                color: "#e6e6e6",
+                border: "1px solid #3a3a3a",
+                background: "#111",
+                color: "#fff",
                 cursor: "pointer",
               }}
             >
@@ -862,6 +967,7 @@ export default function SchedulerClient() {
       {/* Confirm modal */}
       {pendingMove && (
         <div
+          data-testid="schedule-confirm-modal"
           style={{
             position: "fixed",
             inset: 0,
@@ -875,11 +981,11 @@ export default function SchedulerClient() {
           <div
             style={{
               background: "#1b1b1b",
-              border: "1px solid #2a2a2a",
+              border: "1px solid #3a3a3a",
               borderRadius: 8,
               padding: 16,
               width: 360,
-              color: "#e6e6e6",
+              color: "#fff",
             }}
           >
             <h3 style={{ marginTop: 0 }}>Confirm Reschedule</h3>
@@ -889,25 +995,27 @@ export default function SchedulerClient() {
               ?
             </p>
             {pendingMove.conflict && (
-              <p style={{ color: "#ff6b6b" }}>
+              <p style={{ color: "#ff6b6b" }} data-testid="schedule-conflict-warning">
                 Conflict detected (provider or room already booked).
               </p>
             )}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button
+                data-testid="schedule-confirm-cancel"
                 onClick={() => setPendingMove(null)}
                 style={{
                   padding: "6px 10px",
                   borderRadius: 6,
-                  border: "1px solid #2a2a2a",
-                  background: "transparent",
-                  color: "#e6e6e6",
+                  border: "1px solid #3a3a3a",
+                  background: "#111",
+                  color: "#fff",
                   cursor: "pointer",
                 }}
               >
                 Cancel
               </button>
               <button
+                data-testid="schedule-confirm-submit"
                 onClick={confirmMove}
                 style={{
                   padding: "6px 10px",
@@ -927,3 +1035,13 @@ export default function SchedulerClient() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

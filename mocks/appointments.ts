@@ -2,18 +2,24 @@ import type { Appointment } from "../types/appointment";
 import { providers } from "./providers";
 import { patients } from "./patients";
 
+let seed = 987654321;
+const nextRandom = () => {
+  seed = (seed * 1103515245 + 12345) % 2147483648;
+  return seed / 2147483648;
+};
+
 /**
  * Helper: random integer between min and max (inclusive)
  */
 function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(nextRandom() * (max - min + 1)) + min;
 }
 
 /**
  * Helper: pick a random element from an array
  */
 function pickOne<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(nextRandom() * arr.length)];
 }
 
 const rooms = ["Room 101", "Room 202", "Room 305", "Telehealth", "Lab A"];
@@ -73,9 +79,12 @@ for (const provider of providers) {
 }
 
 /**
- * Shuffle slots so appointments are spread naturally
+ * Shuffle slots so appointments are spread naturally (deterministic)
  */
-slotPool.sort(() => Math.random() - 0.5);
+for (let i = slotPool.length - 1; i > 0; i -= 1) {
+  const j = Math.floor(nextRandom() * (i + 1));
+  [slotPool[i], slotPool[j]] = [slotPool[j], slotPool[i]];
+}
 
 /**
  * Generate appointments

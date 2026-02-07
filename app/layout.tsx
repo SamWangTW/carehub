@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "../components/notifications/ToastProvider";
 import NotificationBell from "../components/notifications/NotificationBell";
-import Link from "next/link";
+import NavLinks from "../components/NavLinks";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,21 +28,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <ToastProvider>
-          <header className="sticky top-0 z-40 border-b border-neutral-800/80 bg-neutral-950/90 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-              <div className="flex items-center gap-4 text-neutral-100">
-                <span className="font-semibold">CareHub</span>
-                <nav className="flex items-center gap-3 text-sm text-neutral-300">
-                  <Link className="hover:text-white" href="/patients">
-                    Patients
-                  </Link>
-                  <Link className="hover:text-white" href="/schedule">
-                    Schedule
-                  </Link>
-                </nav>
+          <header className="sticky top-0 z-40 border-b border-border bg-background">
+            <div className="flex items-center justify-between px-6 py-3">
+              <div className="flex items-baseline gap-8">
+                <a href="/" className="text-lg font-semibold text-foreground">
+                  CareHub
+                </a>
+                <NavLinks />
               </div>
               <NotificationBell />
             </div>

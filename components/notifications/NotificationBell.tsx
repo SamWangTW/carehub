@@ -12,6 +12,7 @@ import {
 } from "../../types/notification";
 import NotificationsDropdown from "./NotificationsDropdown";
 import { useToast } from "./ToastProvider";
+import { fetchJsonWithRetry } from "../../lib/http";
 
 const READ_KEY = "carehub_notification_read";
 const SEEN_KEY = "carehub_notification_seen";
@@ -47,8 +48,11 @@ function writeSeenSet(set: Set<string>) {
 }
 
 async function fetcher(url: string): Promise<Notification[]> {
-  const res = await fetch(url);
-  const json = (await res.json()) as NotificationsResponse;
+  const json = await fetchJsonWithRetry<NotificationsResponse>(
+    url,
+    {},
+    { retries: 2, backoffMs: 200 }
+  );
   const parsed = notificationsResponseSchema.parse(json);
 
   const readMap = readReadMap();
@@ -65,6 +69,7 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const initialized = useRef(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const pollMs = Number(process.env.NEXT_PUBLIC_NOTIF_POLL_MS ?? 10000);
 
@@ -106,6 +111,22 @@ export default function NotificationBell() {
     }
   }, [sorted, pushToast]);
 
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (!open) return;
+      if (!panelRef.current) return;
+      if (panelRef.current.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [open]);
+
   async function markRead(id: string) {
     if (busy) return;
     setBusy(true);
@@ -121,7 +142,11 @@ export default function NotificationBell() {
       false
     );
 
-    await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+    await fetchJsonWithRetry(
+      `/api/notifications/${id}/read`,
+      { method: "POST" },
+      { retries: 2, backoffMs: 200 }
+    );
     mutate("/api/notifications");
     setBusy(false);
   }
@@ -143,13 +168,17 @@ export default function NotificationBell() {
       false
     );
 
-    await fetch("/api/notifications/mark-all-read", { method: "POST" });
+    await fetchJsonWithRetry(
+      "/api/notifications/mark-all-read",
+      { method: "POST" },
+      { retries: 2, backoffMs: 200 }
+    );
     mutate("/api/notifications");
     setBusy(false);
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen((v) => !v)}
         data-testid="notif-bell-button"

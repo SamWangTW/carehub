@@ -15,7 +15,10 @@ export default function NotificationsDropdown({
   busy: boolean;
 }) {
   return (
-    <div className="absolute right-0 mt-2 w-80 rounded border border-neutral-700/70 bg-neutral-950 shadow-lg">
+    <div
+      data-testid="notif-dropdown"
+      className="absolute right-0 mt-2 w-80 rounded border border-neutral-700/70 bg-neutral-950 shadow-lg"
+    >
       <div className="flex items-center justify-between border-b border-neutral-800 px-3 py-2">
         <div className="text-sm font-semibold text-neutral-100">
           Notifications

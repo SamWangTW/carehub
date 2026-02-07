@@ -130,7 +130,7 @@ async function PatientHeader({
                 />
               )}
             </div>
-            <h2 style={{ margin: 0 }}>
+            <h2 style={{ margin: 0 }} data-testid="patient-header-name">
               {patient.firstName} {patient.lastName}
             </h2>
           </div>

@@ -95,6 +95,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
   return (
     <>
       <button
+        data-testid="edit-patient-open"
         onClick={() => setOpen(true)}
         style={{
           padding: "6px 10px",
@@ -127,6 +128,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
         <div
           role="dialog"
           aria-modal="true"
+          data-testid="edit-patient-modal"
           style={{
             position: "fixed",
             inset: 0,
@@ -158,6 +160,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               <label style={{ color: "#333" }}>
                 First Name
                 <input
+                  data-testid="edit-patient-first-name"
                   type="text"
                   value={form.firstName}
                   onChange={(e) =>
@@ -176,6 +179,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               <label style={{ color: "#333" }}>
                 Last Name
                 <input
+                  data-testid="edit-patient-last-name"
                   type="text"
                   value={form.lastName}
                   onChange={(e) =>
@@ -194,6 +198,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               <label style={{ color: "#333" }}>
                 Date of Birth
                 <input
+                  data-testid="edit-patient-dob"
                   type="date"
                   value={form.dob}
                   onChange={(e) =>
@@ -212,6 +217,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               <label style={{ color: "#333" }}>
                 Status
                 <select
+                  data-testid="edit-patient-status"
                   value={form.status}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -236,6 +242,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               <label style={{ color: "#333" }}>
                 Risk Level
                 <select
+                  data-testid="edit-patient-risk"
                   value={form.riskLevel}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -261,6 +268,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               <label style={{ color: "#333" }}>
                 Primary Provider
                 <select
+                  data-testid="edit-patient-provider"
                   value={form.primaryProviderId}
                   onChange={(e) =>
                     setForm((prev) => ({
@@ -294,6 +302,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
               }}
             >
               <button
+                data-testid="edit-patient-cancel"
                 onClick={close}
                 disabled={saving}
                 style={{
@@ -323,6 +332,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
                 Cancel
               </button>
               <button
+                data-testid="edit-patient-save"
                 onClick={handleSave}
                 disabled={saving}
                 style={{
