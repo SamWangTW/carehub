@@ -134,7 +134,7 @@ Result: shareable links, reload-safe state, and native back/forward navigation.
 
 ---
 
-## 🔌 API Surface (Implemented)
+## API Surface (Implemented)
 
 ### Patients
 - GET `/api/patients`
