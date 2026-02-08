@@ -6,7 +6,7 @@ type RetryOptions = {
 
 const DEFAULT_RETRY_ON = [429, 500, 502, 503, 504];
 
-function sleep(ms: number, signal?: AbortSignal) {
+function sleep(ms: number, signal?: AbortSignal | null) {
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup();

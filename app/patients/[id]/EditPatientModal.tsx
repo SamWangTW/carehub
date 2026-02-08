@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 import type { Patient } from "../../../types/patient";
 
 type ProviderOption = {
@@ -23,6 +24,17 @@ type FormState = {
   primaryProviderId: string;
 };
 
+const editPatientSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required."),
+  lastName: z.string().trim().min(1, "Last name is required."),
+  dob: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be in YYYY-MM-DD format."),
+  status: z.enum(["active", "inactive", "deceased"]),
+  riskLevel: z.enum(["low", "medium", "high", "critical"]),
+  primaryProviderId: z.string().trim().min(1, "Primary provider is required."),
+});
+
 export default function EditPatientModal({ patient, providers }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -43,6 +55,25 @@ export default function EditPatientModal({ patient, providers }: Props) {
 
   const [form, setForm] = useState<FormState>(initialState);
 
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear - 1900 + 1 }, (_, i) =>
+    String(currentYear - i)
+  );
+  const monthOptions = Array.from({ length: 12 }, (_, i) =>
+    String(i + 1).padStart(2, "0")
+  );
+  const dayOptions = Array.from({ length: 31 }, (_, i) =>
+    String(i + 1).padStart(2, "0")
+  );
+
+  const inputStyle = {
+    width: "100%",
+    padding: 8,
+    color: "#111",
+    background: "#fff",
+    border: "1px solid #ccc",
+  } as const;
+
   function close() {
     setOpen(false);
     setError(null);
@@ -50,15 +81,20 @@ export default function EditPatientModal({ patient, providers }: Props) {
   }
 
   function validate(state: FormState): string | null {
-    if (!state.firstName.trim()) return "First name is required.";
-    if (!state.lastName.trim()) return "Last name is required.";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(state.dob)) {
-      return "DOB must be in YYYY-MM-DD format.";
-    }
-    if (!state.primaryProviderId.trim()) {
-      return "Primary provider is required.";
-    }
-    return null;
+    const result = editPatientSchema.safeParse(state);
+    if (result.success) return null;
+    return result.error.issues[0]?.message ?? "Invalid form values.";
+  }
+
+  function setDobPart(part: "year" | "month" | "day", value: string) {
+    const [y = "", m = "", d = ""] = form.dob.split("-");
+    const nextYear = part === "year" ? value : y;
+    const nextMonth = part === "month" ? value : m;
+    const nextDay = part === "day" ? value : d;
+    setForm((prev) => ({
+      ...prev,
+      dob: `${nextYear}-${nextMonth}-${nextDay}`,
+    }));
   }
 
   async function handleSave() {
@@ -166,13 +202,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, firstName: e.target.value }))
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    color: "#111",
-                    background: "#fff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={inputStyle}
                 />
               </label>
 
@@ -185,32 +215,57 @@ export default function EditPatientModal({ patient, providers }: Props) {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, lastName: e.target.value }))
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    color: "#111",
-                    background: "#fff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={inputStyle}
                 />
               </label>
 
               <label style={{ color: "#333" }}>
                 Date of Birth
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                  <select
+                    data-testid="edit-patient-dob-month"
+                    value={form.dob.split("-")[1] ?? ""}
+                    onChange={(e) => setDobPart("month", e.target.value)}
+                    style={inputStyle}
+                  >
+                    {monthOptions.map((month) => (
+                      <option key={month} value={month}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    data-testid="edit-patient-dob-day"
+                    value={form.dob.split("-")[2] ?? ""}
+                    onChange={(e) => setDobPart("day", e.target.value)}
+                    style={inputStyle}
+                  >
+                    {dayOptions.map((day) => (
+                      <option key={day} value={day}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    data-testid="edit-patient-dob-year"
+                    value={form.dob.split("-")[0] ?? ""}
+                    onChange={(e) => setDobPart("year", e.target.value)}
+                    style={inputStyle}
+                  >
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <input
                   data-testid="edit-patient-dob"
-                  type="date"
+                  type="hidden"
                   value={form.dob}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, dob: e.target.value }))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    color: "#111",
-                    background: "#fff",
-                    border: "1px solid #ccc",
-                  }}
+                  readOnly
                 />
               </label>
 
@@ -225,13 +280,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
                       status: e.target.value as Patient["status"],
                     }))
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    color: "#111",
-                    background: "#fff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={inputStyle}
                 >
                   <option value="active">active</option>
                   <option value="inactive">inactive</option>
@@ -250,13 +299,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
                       riskLevel: e.target.value as Patient["riskLevel"],
                     }))
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    color: "#111",
-                    background: "#fff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={inputStyle}
                 >
                   <option value="low">low</option>
                   <option value="medium">medium</option>
@@ -276,13 +319,7 @@ export default function EditPatientModal({ patient, providers }: Props) {
                       primaryProviderId: e.target.value,
                     }))
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    color: "#111",
-                    background: "#fff",
-                    border: "1px solid #ccc",
-                  }}
+                  style={inputStyle}
                 >
                   {providers.map((p) => (
                     <option key={p.id} value={p.id}>

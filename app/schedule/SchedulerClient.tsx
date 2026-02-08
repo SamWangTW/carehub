@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Appointment } from "../../types/appointment";
 import type { Provider } from "../../types/provider";
@@ -14,7 +14,7 @@ type ViewBy = "provider" | "room";
 
 const startHour = 8;
 const endHour = 18;
-const slotMinutes = 60;
+const slotMinutes = 30;
 const slotsPerDay = ((endHour - startHour) * 60) / slotMinutes;
 const rowHeight = 100;
 
@@ -123,6 +123,7 @@ export default function SchedulerClient() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [draggingApptId, setDraggingApptId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{
     patientId: string;
     providerId: string;
@@ -138,8 +139,6 @@ export default function SchedulerClient() {
     newRoom?: string;
     conflict: boolean;
   } | null>(null);
-
-  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -281,30 +280,16 @@ export default function SchedulerClient() {
     }
   }
 
-  function getAbsoluteSlotFromClientY(clientY: number) {
-    if (!gridRef.current) return null;
-    const rect = gridRef.current.getBoundingClientRect();
-    const scrollTop = gridRef.current.scrollTop;
-    const y = clientY - rect.top + scrollTop;
-    const rawSlot = y / rowHeight;
-    const snapped = Math.round(rawSlot);
-    const clamped = Math.max(0, Math.min(totalSlots - 1, snapped));
-    return clamped;
-  }
-
-  function handleDrop(apptId: string, clientY: number, columnId: string) {
+  function handleDrop(
+    apptId: string,
+    dayIndex: number,
+    slot: number,
+    columnId: string
+  ) {
     const appt = appointments.find((a) => a.id === apptId);
     if (!appt) return;
-
-    const absoluteSlot = getAbsoluteSlotFromClientY(clientY);
-    if (absoluteSlot === null) return;
-
-    const dayIndex = Math.min(
-      days.length - 1,
-      Math.max(0, Math.floor(absoluteSlot / slotsPerDay))
-    );
-    const slot = absoluteSlot - dayIndex * slotsPerDay;
     const date = days[dayIndex];
+    if (!date) return;
 
     const duration = getDurationMinutes(appt);
     const { hours, minutes } = timeFromSlot(slot);
@@ -527,7 +512,6 @@ export default function SchedulerClient() {
 
         {/* Grid */}
         <div
-          ref={gridRef}
           className="relative grid border border-white rounded-lg overflow-hidden min-w-full bg-neutral-950"
           style={{
             gridTemplateColumns: gridColumns,
@@ -593,8 +577,9 @@ export default function SchedulerClient() {
               onClick={() => openCreate(day, slotInDay, c.id)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
-                const apptId = e.dataTransfer.getData("text/plain");
-                if (apptId) handleDrop(apptId, e.clientY, c.id);
+                const apptId =
+                  e.dataTransfer.getData("text/plain") || draggingApptId;
+                if (apptId) handleDrop(apptId, dayIndex, slotInDay, c.id);
               }}
             />
           ));
@@ -633,7 +618,11 @@ export default function SchedulerClient() {
               key={appt.id}
               data-testid={`schedule-appt-${appt.id}`}
               draggable
-              onDragStart={(e) => e.dataTransfer.setData("text/plain", appt.id)}
+              onDragStart={(e) => {
+                setDraggingApptId(appt.id);
+                e.dataTransfer.setData("text/plain", appt.id);
+              }}
+              onDragEnd={() => setDraggingApptId(null)}
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedApptId(appt.id);
