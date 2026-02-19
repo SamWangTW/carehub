@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Appointment } from "../../types/appointment";
 import type { Provider } from "../../types/provider";
 import type { Patient } from "../../types/patient";
-import { appointments as mockAppointments } from "../../mocks/appointments";
 import { providers as mockProviders } from "../../mocks/providers";
 import { patients as mockPatients } from "../../mocks/patients";
 
@@ -116,8 +115,9 @@ export default function SchedulerClient() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [viewBy, setViewBy] = useState<ViewBy>("provider");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [appointments, setAppointments] =
-    useState<Appointment[]>(mockAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loadingAppts, setLoadingAppts] = useState(false);
+  const [apptLoadError, setApptLoadError] = useState<string | null>(null);
   const [selectedApptId, setSelectedApptId] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -164,6 +164,63 @@ export default function SchedulerClient() {
 
   const providers = mockProviders as Provider[];
   const patients = mockPatients as Patient[];
+
+  function getRange(mode: ViewMode, date: Date): { start: Date; end: Date } {
+    if (mode === "week") {
+      const start = startOfWeek(date);
+      return { start, end: addDays(start, 7) };
+    }
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    return { start, end: addDays(start, 1) };
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const { start, end } = getRange(viewMode, selectedDate);
+
+    async function loadAppointments() {
+      setLoadingAppts(true);
+      setApptLoadError(null);
+
+      try {
+        const qs = new URLSearchParams({
+          start: start.toISOString(),
+          end: end.toISOString(),
+        });
+        const res = await fetch(`/api/appointments?${qs.toString()}`, {
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const message =
+            typeof body?.error === "string"
+              ? body.error
+              : `Failed to load appointments (${res.status})`;
+          throw new Error(message);
+        }
+
+        const json = (await res.json()) as { data?: Appointment[] };
+        if (controller.signal.aborted) return;
+        const next = Array.isArray(json.data) ? json.data : [];
+        next.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        setAppointments(next);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setApptLoadError(
+          err instanceof Error ? err.message : "Failed to load appointments."
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoadingAppts(false);
+        }
+      }
+    }
+
+    loadAppointments();
+    return () => controller.abort();
+  }, [viewMode, selectedDate]);
 
   const weekStart = useMemo(() => startOfWeek(selectedDate), [selectedDate]);
   const days = useMemo(() => {
@@ -492,6 +549,17 @@ export default function SchedulerClient() {
             : formatDateLabel(selectedDate)}
         </div>
       </div>
+      {(loadingAppts || apptLoadError) && (
+        <div
+          style={{
+            marginBottom: 12,
+            fontSize: 12,
+            color: apptLoadError ? "#ff8a8a" : "#9aa0a6",
+          }}
+        >
+          {apptLoadError ?? "Loading appointments..."}
+        </div>
+      )}
 
       <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] relative z-0 bg-background">
         {/* Header row */}
